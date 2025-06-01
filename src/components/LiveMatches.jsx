@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-
+import { ToggleLeft, ToggleRight, Music, AudioLines } from "lucide-react";
 import axios from "axios";
+
 import championsLogo from "../assets/img/champions-league.jpeg";
 import championsBdg from "../assets/img/video5895433549720328973.mp4";
+import backgroundMusicFile from "../assets/audio/UEFA Champions League Anthem.mp3";
 
 const headers = {
   "x-rapidapi-key": "20b2ec2224mshc5b95c57bbbd053p192725jsna1147872b2c2",
@@ -17,12 +19,27 @@ const FinalMatch = () => {
   const [lineups, setLineups] = useState([]);
   const [error, setError] = useState(null);
   const [darkMode, setDarkMode] = useState(true);
+  const [musicPlaying, setMusicPlaying] = useState(true);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const audioRef = useRef(null);
 
   const fixtureDate = "2025-05-31";
   const [timeLeft, setTimeLeft] = useState("");
   const [showVideo, setShowVideo] = useState(true);
   const [showHighlights, setShowHighlights] = useState(false);
 
+  // Attempt to play audio on load; if blocked, show overlay for user interaction
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.play().catch((e) => {
+        console.log("Autoplay prevented:", e);
+        setMusicPlaying(false);
+        setShowOverlay(true);
+      });
+    }
+  }, []);
+
+  // Hide video after 20 seconds
   useEffect(() => {
     const timeout = setTimeout(() => {
       setShowVideo(false);
@@ -31,6 +48,7 @@ const FinalMatch = () => {
     return () => clearTimeout(timeout);
   }, []);
 
+  // Countdown to kickoff
   useEffect(() => {
     const kickoffTime = new Date("2025-05-31T19:00:00Z");
 
@@ -54,6 +72,7 @@ const FinalMatch = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch match data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -81,7 +100,7 @@ const FinalMatch = () => {
         );
         setStats(statsRes.data.response);
 
-        // Events
+        // Events (Goals)
         const eventsRes = await axios.get(
           "https://api-football-v1.p.rapidapi.com/v3/fixtures/events",
           { params: { fixture: fixtureId }, headers }
@@ -103,12 +122,47 @@ const FinalMatch = () => {
     fetchData();
   }, [fixtureDate]);
 
+  // Handle user interaction from overlay to enable audio
+  const handleUserInteraction = async () => {
+    if (!audioRef.current) return;
+
+    try {
+      await audioRef.current.play();
+      setMusicPlaying(true);
+      setShowOverlay(false);
+    } catch (e) {
+      console.log("User interaction audio play failed:", e);
+      setMusicPlaying(false);
+      setShowOverlay(true);
+    }
+  };
+
+  // Toggle music play/pause
+  const toggleMusic = () => {
+    if (!audioRef.current) return;
+
+    if (musicPlaying) {
+      audioRef.current.pause();
+      setMusicPlaying(false);
+    } else {
+      audioRef.current
+        .play()
+        .then(() => setMusicPlaying(true))
+        .catch((e) => {
+          console.log("Play prevented:", e);
+          setShowOverlay(true);
+          setMusicPlaying(false);
+        });
+    }
+  };
+
   if (error) return <div className="centered">{error}</div>;
   if (!match)
     return <div className="centered">Loading Champions League Final...</div>;
 
   return (
     <>
+      {/* Background video or fallback image */}
       {showVideo ? (
         <video autoPlay muted loop className="background-video">
           <source src={championsBdg} type="video/mp4" />
@@ -117,10 +171,64 @@ const FinalMatch = () => {
       ) : (
         <div className="background-image" />
       )}
+
+      {/* Overlay shown when audio autoplay is blocked */}
+      {showOverlay && (
+        <div
+          onClick={handleUserInteraction}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            backgroundColor: "rgba(0,0,0,0.85)",
+            color: "white",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            fontSize: "1.5rem",
+            textAlign: "center",
+            padding: "1rem",
+            zIndex: 2000,
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+        >
+          Click anywhere to enable sound
+        </div>
+      )}
+
       <div className={`centered ${darkMode ? "dark-theme" : "light-theme"}`}>
-        <button onClick={() => setDarkMode(!darkMode)}>
-          Toggle {darkMode ? "Light" : "Dark"} Mode
-        </button>
+        {/* Theme toggle icon */}
+        <div
+          onClick={() => setDarkMode(!darkMode)}
+          className="toggle-icon"
+          title="Toggle Theme"
+          style={{ cursor: "pointer" }}
+        >
+          {darkMode ? <ToggleLeft size={32} /> : <ToggleRight size={32} />}
+        </div>
+
+        {/* Music toggle icon */}
+        <div
+          onClick={toggleMusic}
+          className="music-toggle-icon"
+          title={musicPlaying ? "Pause Music" : "Play Music"}
+          style={{
+            cursor: "pointer",
+            position: "absolute",
+            top: 20,
+            right: 20,
+            zIndex: 1000,
+          }}
+        >
+          {musicPlaying ? <Music size={32} /> : <AudioLines size={32} />}
+        </div>
+
+        {/* Audio element */}
+        <audio ref={audioRef} src={backgroundMusicFile} loop preload="auto" />
+
         <h1 style={{ color: "gold" }}>🏆 Champions League Final</h1>
         <div
           style={{
@@ -196,9 +304,12 @@ const FinalMatch = () => {
           <h3>👥 Lineups</h3>
           {lineups.map((lineup) => (
             <div key={lineup.team.id}>
-              <strong>{lineup.team.name}</strong>
-              <p>Coach: {lineup.coach.name}</p>
-              <p>Formation: {lineup.formation}</p>
+              <h4>{lineup.team.name}</h4>
+              <ul>
+                {lineup.startXI.map((player) => (
+                  <li key={player.player.id}>{player.player.name}</li>
+                ))}
+              </ul>
             </div>
           ))}
         </div>
