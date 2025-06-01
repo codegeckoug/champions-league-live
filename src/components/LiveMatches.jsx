@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+
 import axios from "axios";
 import championsLogo from "../assets/img/champions-league.jpeg";
 import championsBdg from "../assets/img/video5895433549720328973.mp4";
-import championsBdg1 from "../assets/img/video5895433549720328920.mp4";
 
 const headers = {
   "x-rapidapi-key": "20b2ec2224mshc5b95c57bbbd053p192725jsna1147872b2c2",
@@ -18,9 +19,10 @@ const FinalMatch = () => {
   const [darkMode, setDarkMode] = useState(true);
 
   const fixtureDate = "2025-05-31";
-  const kickoffTime = new Date("2025-05-31T19:00:00Z");
   const [timeLeft, setTimeLeft] = useState("");
   const [showVideo, setShowVideo] = useState(true);
+  const [showHighlights, setShowHighlights] = useState(false);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       setShowVideo(false);
@@ -30,6 +32,8 @@ const FinalMatch = () => {
   }, []);
 
   useEffect(() => {
+    const kickoffTime = new Date("2025-05-31T19:00:00Z");
+
     const interval = setInterval(() => {
       const now = new Date();
       const diff = kickoffTime - now;
@@ -51,8 +55,6 @@ const FinalMatch = () => {
   }, []);
 
   useEffect(() => {
-    let intervalId;
-
     const fetchData = async () => {
       try {
         const res = await axios.get(
@@ -92,18 +94,6 @@ const FinalMatch = () => {
           { params: { fixture: fixtureId }, headers }
         );
         setLineups(lineupRes.data.response);
-
-        // Auto-refresh only while match is live
-        const liveStatuses = ["1H", "2H", "ET", "LIVE", "P"];
-        if (liveStatuses.includes(fixture.fixture.status.short)) {
-          if (!intervalId) {
-            intervalId = setInterval(fetchData, 30000); // 30s
-          }
-        } else {
-          if (intervalId) {
-            clearInterval(intervalId);
-          }
-        }
       } catch (err) {
         console.error(err);
         setError("Error loading match data.");
@@ -111,11 +101,7 @@ const FinalMatch = () => {
     };
 
     fetchData();
-
-    return () => {
-      if (intervalId) clearInterval(intervalId); // cleanup
-    };
-  }, []);
+  }, [fixtureDate]);
 
   if (error) return <div className="centered">{error}</div>;
   if (!match)
@@ -135,7 +121,6 @@ const FinalMatch = () => {
         <button onClick={() => setDarkMode(!darkMode)}>
           Toggle {darkMode ? "Light" : "Dark"} Mode
         </button>
-
         <h1 style={{ color: "gold" }}>🏆 Champions League Final</h1>
         <div
           style={{
@@ -159,29 +144,29 @@ const FinalMatch = () => {
           </div>
         </div>
         <p>⏳ Kickoff Countdown: {timeLeft}</p>
-        <a
-          href="https://afr.livesports088.com/"
-          rel="noopener noreferrer"
-          style={{
-            display: "inline-block",
-            marginTop: "10px",
-            padding: "10px 20px",
-            backgroundColor: "#123efe",
-            color: "gold",
-            textDecoration: "none",
-            borderRadius: "6px",
-            fontWeight: "bold",
-          }}
-        >
-          🎥 Watch Live
-        </a>
-
+        <Link to="/highlights" className="highlights-link">
+          <button
+            onClick={() => setShowHighlights(!showHighlights)}
+            style={{
+              margin: "20px auto",
+              padding: "12px 24px",
+              fontSize: "16px",
+              backgroundColor: "#123efe",
+              color: "gold",
+              border: "none",
+              borderRadius: "6px",
+              cursor: "pointer",
+              display: "block",
+            }}
+          >
+            🎥Show Highlights
+          </button>
+        </Link>
         <p>Kickoff: {new Date(match.fixture.date).toLocaleString()}</p>
         <p>
           Score: {match.goals.home} - {match.goals.away}
         </p>
         <p>Status: {match.fixture.status.long}</p>
-
         <div className="card right-card">
           <h3>⚽ Goal Scorers</h3>
           {scorers.length ? (
@@ -194,7 +179,6 @@ const FinalMatch = () => {
             <p>No goals yet</p>
           )}
         </div>
-
         <div className="card center-card">
           <h3>📊 Possession</h3>
           {stats.map((team) => {
@@ -208,7 +192,6 @@ const FinalMatch = () => {
             );
           })}
         </div>
-
         <div className="card left-card">
           <h3>👥 Lineups</h3>
           {lineups.map((lineup) => (
