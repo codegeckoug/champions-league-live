@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { ToggleLeft, ToggleRight, Music, AudioLines } from "lucide-react";
+import { ToggleLeft, ToggleRight, Music } from "lucide-react";
 import axios from "axios";
 
 import championsLogo from "../assets/img/champions-league.jpeg";
@@ -19,7 +19,7 @@ const FinalMatch = () => {
   const [lineups, setLineups] = useState([]);
   const [error, setError] = useState(null);
   const [darkMode, setDarkMode] = useState(true);
-  const [musicPlaying, setMusicPlaying] = useState(false);
+  const [musicPlaying, setMusicPlaying] = useState(false); // Start paused
   const audioRef = useRef(null);
 
   const fixtureDate = "2025-05-31";
@@ -27,6 +27,23 @@ const FinalMatch = () => {
   const [showVideo, setShowVideo] = useState(true);
   const [showHighlights, setShowHighlights] = useState(false);
 
+  // Removed autoplay on load effect
+
+  // Toggle music play/pause
+  const toggleMusic = () => {
+    if (!audioRef.current) return;
+
+    if (musicPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().catch((e) => {
+        console.log("Play prevented:", e);
+      });
+    }
+    setMusicPlaying(!musicPlaying);
+  };
+
+  // Hide video after 20 seconds
   useEffect(() => {
     const timeout = setTimeout(() => {
       setShowVideo(false);
@@ -35,6 +52,7 @@ const FinalMatch = () => {
     return () => clearTimeout(timeout);
   }, []);
 
+  // Countdown to kickoff
   useEffect(() => {
     const kickoffTime = new Date("2025-05-31T19:00:00Z");
 
@@ -58,6 +76,7 @@ const FinalMatch = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch match data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -78,18 +97,21 @@ const FinalMatch = () => {
         setMatch(fixture);
         const fixtureId = fixture.fixture.id;
 
+        // Stats
         const statsRes = await axios.get(
           "https://api-football-v1.p.rapidapi.com/v3/fixtures/statistics",
           { params: { fixture: fixtureId }, headers }
         );
         setStats(statsRes.data.response);
 
+        // Events (Goals)
         const eventsRes = await axios.get(
           "https://api-football-v1.p.rapidapi.com/v3/fixtures/events",
           { params: { fixture: fixtureId }, headers }
         );
         setScorers(eventsRes.data.response.filter((e) => e.type === "Goal"));
 
+        // Lineups
         const lineupRes = await axios.get(
           "https://api-football-v1.p.rapidapi.com/v3/fixtures/lineups",
           { params: { fixture: fixtureId }, headers }
@@ -104,20 +126,6 @@ const FinalMatch = () => {
     fetchData();
   }, [fixtureDate]);
 
-  const toggleMusic = () => {
-    if (!audioRef.current) return;
-
-    if (musicPlaying) {
-      audioRef.current.pause();
-      setMusicPlaying(false);
-    } else {
-      audioRef.current.play().catch((e) => {
-        console.log("Play prevented:", e);
-      });
-      setMusicPlaying(true);
-    }
-  };
-
   if (error) return <div className="centered">{error}</div>;
   if (!match)
     return <div className="centered">Loading Champions League Final...</div>;
@@ -125,20 +133,7 @@ const FinalMatch = () => {
   return (
     <>
       {showVideo ? (
-        <video
-          autoPlay
-          muted
-          loop
-          className="background-video"
-          onLoadedData={() => {
-            if (audioRef.current && !musicPlaying) {
-              audioRef.current.play().catch((e) => {
-                console.log("Audio auto-play blocked:", e);
-              });
-              setMusicPlaying(true);
-            }
-          }}
-        >
+        <video autoPlay muted loop className="background-video">
           <source src={championsBdg} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
@@ -147,6 +142,7 @@ const FinalMatch = () => {
       )}
 
       <div className={`centered ${darkMode ? "dark-theme" : "light-theme"}`}>
+        {/* Theme toggle icon */}
         <div
           onClick={() => setDarkMode(!darkMode)}
           className="toggle-icon"
@@ -156,6 +152,7 @@ const FinalMatch = () => {
           {darkMode ? <ToggleLeft size={32} /> : <ToggleRight size={32} />}
         </div>
 
+        {/* Music toggle icon */}
         <div
           onClick={toggleMusic}
           className="music-toggle-icon"
@@ -166,12 +163,16 @@ const FinalMatch = () => {
             top: 20,
             right: 20,
             zIndex: 1000,
+            color: musicPlaying ? "gold" : "red",
+            opacity: musicPlaying ? 1 : 0.5,
+            transition: "color 0.3s ease, opacity 0.3s ease",
           }}
         >
-          {musicPlaying ? <Music size={32} /> : <AudioLines size={32} />}
+          <Music size={32} />
         </div>
 
-        <audio ref={audioRef} src={backgroundMusicFile} loop preload="auto" />
+        {/* Audio element */}
+        <audio ref={audioRef} src={backgroundMusicFile} loop />
 
         <h1 style={{ color: "gold" }}>🏆 Champions League Final</h1>
         <div
