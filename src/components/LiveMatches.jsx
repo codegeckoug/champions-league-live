@@ -130,10 +130,10 @@ const FinalMatch = () => {
           muted
           loop
           className="background-video"
-          onPlay={() => {
+          onLoadedData={() => {
             if (audioRef.current && !musicPlaying) {
               audioRef.current.play().catch((e) => {
-                console.log("Audio play prevented on video start:", e);
+                console.log("Audio auto-play blocked:", e);
               });
               setMusicPlaying(true);
             }
