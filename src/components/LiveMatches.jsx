@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { ToggleLeft, ToggleRight, Music } from "lucide-react";
+import { ToggleLeft, ToggleRight, AudioLines } from "lucide-react";
 import axios from "axios";
 
 import championsLogo from "../assets/img/champions-league.jpeg";
@@ -168,7 +168,7 @@ const FinalMatch = () => {
             transition: "color 0.3s ease, opacity 0.3s ease",
           }}
         >
-          <Music size={32} />
+          <AudioLines size={32} />
         </div>
 
         {/* Audio element */}
