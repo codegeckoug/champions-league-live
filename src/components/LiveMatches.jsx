@@ -19,8 +19,7 @@ const FinalMatch = () => {
   const [lineups, setLineups] = useState([]);
   const [error, setError] = useState(null);
   const [darkMode, setDarkMode] = useState(true);
-  const [musicPlaying, setMusicPlaying] = useState(true);
-  const [showOverlay, setShowOverlay] = useState(false);
+  const [musicPlaying, setMusicPlaying] = useState(false);
   const audioRef = useRef(null);
 
   const fixtureDate = "2025-05-31";
@@ -28,18 +27,6 @@ const FinalMatch = () => {
   const [showVideo, setShowVideo] = useState(true);
   const [showHighlights, setShowHighlights] = useState(false);
 
-  // Attempt to play audio on load; if blocked, show overlay for user interaction
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.play().catch((e) => {
-        console.log("Autoplay prevented:", e);
-        setMusicPlaying(false);
-        setShowOverlay(true);
-      });
-    }
-  }, []);
-
-  // Hide video after 20 seconds
   useEffect(() => {
     const timeout = setTimeout(() => {
       setShowVideo(false);
@@ -48,7 +35,6 @@ const FinalMatch = () => {
     return () => clearTimeout(timeout);
   }, []);
 
-  // Countdown to kickoff
   useEffect(() => {
     const kickoffTime = new Date("2025-05-31T19:00:00Z");
 
@@ -72,7 +58,6 @@ const FinalMatch = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch match data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -93,21 +78,18 @@ const FinalMatch = () => {
         setMatch(fixture);
         const fixtureId = fixture.fixture.id;
 
-        // Stats
         const statsRes = await axios.get(
           "https://api-football-v1.p.rapidapi.com/v3/fixtures/statistics",
           { params: { fixture: fixtureId }, headers }
         );
         setStats(statsRes.data.response);
 
-        // Events (Goals)
         const eventsRes = await axios.get(
           "https://api-football-v1.p.rapidapi.com/v3/fixtures/events",
           { params: { fixture: fixtureId }, headers }
         );
         setScorers(eventsRes.data.response.filter((e) => e.type === "Goal"));
 
-        // Lineups
         const lineupRes = await axios.get(
           "https://api-football-v1.p.rapidapi.com/v3/fixtures/lineups",
           { params: { fixture: fixtureId }, headers }
@@ -122,22 +104,6 @@ const FinalMatch = () => {
     fetchData();
   }, [fixtureDate]);
 
-  // Handle user interaction from overlay to enable audio
-  const handleUserInteraction = async () => {
-    if (!audioRef.current) return;
-
-    try {
-      await audioRef.current.play();
-      setMusicPlaying(true);
-      setShowOverlay(false);
-    } catch (e) {
-      console.log("User interaction audio play failed:", e);
-      setMusicPlaying(false);
-      setShowOverlay(true);
-    }
-  };
-
-  // Toggle music play/pause
   const toggleMusic = () => {
     if (!audioRef.current) return;
 
@@ -145,14 +111,10 @@ const FinalMatch = () => {
       audioRef.current.pause();
       setMusicPlaying(false);
     } else {
-      audioRef.current
-        .play()
-        .then(() => setMusicPlaying(true))
-        .catch((e) => {
-          console.log("Play prevented:", e);
-          setShowOverlay(true);
-          setMusicPlaying(false);
-        });
+      audioRef.current.play().catch((e) => {
+        console.log("Play prevented:", e);
+      });
+      setMusicPlaying(true);
     }
   };
 
@@ -162,9 +124,21 @@ const FinalMatch = () => {
 
   return (
     <>
-      {/* Background video or fallback image */}
       {showVideo ? (
-        <video autoPlay muted loop className="background-video">
+        <video
+          autoPlay
+          muted
+          loop
+          className="background-video"
+          onPlay={() => {
+            if (audioRef.current && !musicPlaying) {
+              audioRef.current.play().catch((e) => {
+                console.log("Audio play prevented on video start:", e);
+              });
+              setMusicPlaying(true);
+            }
+          }}
+        >
           <source src={championsBdg} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
@@ -172,35 +146,7 @@ const FinalMatch = () => {
         <div className="background-image" />
       )}
 
-      {/* Overlay shown when audio autoplay is blocked */}
-      {showOverlay && (
-        <div
-          onClick={handleUserInteraction}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "rgba(0,0,0,0.85)",
-            color: "white",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            fontSize: "1.5rem",
-            textAlign: "center",
-            padding: "1rem",
-            zIndex: 2000,
-            cursor: "pointer",
-            userSelect: "none",
-          }}
-        >
-          Click anywhere to enable sound
-        </div>
-      )}
-
       <div className={`centered ${darkMode ? "dark-theme" : "light-theme"}`}>
-        {/* Theme toggle icon */}
         <div
           onClick={() => setDarkMode(!darkMode)}
           className="toggle-icon"
@@ -210,7 +156,6 @@ const FinalMatch = () => {
           {darkMode ? <ToggleLeft size={32} /> : <ToggleRight size={32} />}
         </div>
 
-        {/* Music toggle icon */}
         <div
           onClick={toggleMusic}
           className="music-toggle-icon"
@@ -226,7 +171,6 @@ const FinalMatch = () => {
           {musicPlaying ? <Music size={32} /> : <AudioLines size={32} />}
         </div>
 
-        {/* Audio element */}
         <audio ref={audioRef} src={backgroundMusicFile} loop preload="auto" />
 
         <h1 style={{ color: "gold" }}>🏆 Champions League Final</h1>
@@ -304,12 +248,9 @@ const FinalMatch = () => {
           <h3>👥 Lineups</h3>
           {lineups.map((lineup) => (
             <div key={lineup.team.id}>
-              <h4>{lineup.team.name}</h4>
-              <ul>
-                {lineup.startXI.map((player) => (
-                  <li key={player.player.id}>{player.player.name}</li>
-                ))}
-              </ul>
+              <strong>{lineup.team.name}</strong>
+              <p>Coach: {lineup.coach.name}</p>
+              <p>Formation: {lineup.formation}</p>
             </div>
           ))}
         </div>
